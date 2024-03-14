@@ -1,8 +1,45 @@
 import { exit } from "process";
-import WebSocket from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 import mic from "mic";
 
 const SAMPLE_RATE = 16_000;
+
+import OpenAI from "openai";
+
+const openai = new OpenAI();
+
+async function translate(text: string) {
+  const completion = await openai.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are a Japanese translator. Translate the following English text to Japanese. Only return the Japanese translation.",
+      },
+      { role: "user", content: text },
+    ],
+    model: "gpt-3.5-turbo-0125",
+  });
+  // console.log(completion.choices[0].message.content);
+  return completion.choices[0].message.content;
+}
+
+const wss = new WebSocketServer({ port: 8080 });
+
+wss.on('connection', function connection(ws) {
+  console.log('A new client connected.');
+  ws.on('message', function message(data) {
+    console.log('received: %s', data);
+  });
+});
+
+// Function to broadcast messages to all clients
+function broadcastTranslation(translatedText: any) {
+  wss.clients.forEach(function each(client) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(translatedText);
+    }
+  });
+}
 
 // retrieve gladia key
 const gladiaKey = process.argv[2];
@@ -35,10 +72,10 @@ socket.on("message", (event: any) => {
     console.error(`[${utterance.code}] ${utterance.message}`);
     socket.close();
   } else if (utterance.event === "transcript" && utterance.transcription) {
-    console.log(
-      `${utterance.type}: (${utterance.language}) ${utterance.transcription}`
-    );
-  }
+    translate(utterance.transcription).then(translated_text => {
+      broadcastTranslation(translated_text);
+  }).catch(err => console.error(err));
+}
 });
 
 socket.on("error", (error: WebSocket.ErrorEvent) => {
