@@ -3,6 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <title>Live Translation</title>
+<style>
+  .partialTranscript, .finalTranscript {
+    border: 1px solid #ccc; /* Add a border */
+    border-radius: 10px; /* Rounded corners */
+    padding: 10px; /* Some padding */
+    margin: 10px 0; /* Some margin */
+    display: inline-block; /* Make it inline */
+  }
+  .partialTranscript {
+    color: grey;
+  }
+  .finalTranscript {
+    color: black; /* Or any other color you prefer for final transcripts */
+  }
+</style>
 </head>
 <body>
 <div id="translations"></div>
@@ -10,9 +25,32 @@
   var ws = new WebSocket('ws://localhost:8080');
   ws.onmessage = function (event) {
     var translations = document.getElementById('translations');
-    var message = document.createElement('p');
-    message.textContent = event.data;
-    translations.appendChild(message);
+    var transcript = JSON.parse(event.data); // Assuming event.data is a JSON string that contains the transcript
+    
+    // Check the message type and apply the appropriate class
+    if (transcript.message_type === 'partial') {
+      // Check if a partial transcript is already displayed, remove it if so
+      var existingPartial = translations.querySelector('.partialTranscript');
+      if (existingPartial) {
+        translations.removeChild(existingPartial);
+      }
+
+      var partialMessage = document.createElement('p');
+      partialMessage.className = 'partialTranscript';
+      partialMessage.textContent = transcript.text; // Assuming the text is stored in a property called text
+      translations.appendChild(partialMessage);
+    } else if (transcript.message_type === 'final') {
+      // Remove the partial transcript when the final transcript arrives
+      var existingPartial = translations.querySelector('.partialTranscript');
+      if (existingPartial) {
+        translations.removeChild(existingPartial);
+      }
+
+      var finalMessage = document.createElement('p');
+      finalMessage.className = 'finalTranscript';
+      finalMessage.textContent = transcript.text; // Assuming the text is stored in a property called text
+      translations.appendChild(finalMessage);
+    }
   };
 </script>
 </body>

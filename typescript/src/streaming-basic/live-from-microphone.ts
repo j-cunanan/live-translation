@@ -13,7 +13,7 @@ async function translate(text: string) {
     messages: [
       {
         role: "system",
-        content: "You are a Japanese translator. Translate the following English text to Japanese. Only return the Japanese translation.",
+        content: "You are a Japanese translator. Translate the following English text to Japanese. Only return the Japanese translation. Use the following proper nouns if they are in the text: Jayson, JimakuAI",
       },
       { role: "user", content: text },
     ],
@@ -33,10 +33,11 @@ wss.on('connection', function connection(ws) {
 });
 
 // Function to broadcast messages to all clients
-function broadcastTranslation(translatedText: any) {
+function broadcastTranslation(textType: any, translatedText: string | null) {
+  const message = JSON.stringify({message_type: textType, text: translatedText});
   wss.clients.forEach(function each(client) {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(translatedText);
+      client.send(message);
     }
   });
 }
@@ -72,8 +73,12 @@ socket.on("message", (event: any) => {
     console.error(`[${utterance.code}] ${utterance.message}`);
     socket.close();
   } else if (utterance.event === "transcript" && utterance.transcription) {
+    console.log(
+      `${utterance.type}: (${utterance.language}) ${utterance.transcription}`
+    );
+    const text_type = utterance.type;
     translate(utterance.transcription).then(translated_text => {
-      broadcastTranslation(translated_text);
+      broadcastTranslation(text_type, translated_text);
   }).catch(err => console.error(err));
 }
 });
