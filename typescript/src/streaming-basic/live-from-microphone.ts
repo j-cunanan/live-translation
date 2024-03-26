@@ -13,7 +13,7 @@ async function translate(text: string) {
     messages: [
       {
         role: "system",
-        content: "You are a Japanese translator. Translate the following English text to Japanese. Only return the Japanese translation. Use the following proper nouns if they are in the text: Jayson, JimakuAI",
+        content: "You are a Japanese translator. Translate the following English text to Japanese. Only return the Japanese translation. ",
       },
       { role: "user", content: text },
     ],
@@ -32,9 +32,20 @@ wss.on('connection', function connection(ws) {
   });
 });
 
+/**
+ * Generalized function to broadcast messages to all clients.
+ * @param messageType - Specifies whether the message is a 'translation' or 'transcription'.
+ * @param textStatus - Specifies whether the text is 'partial' or 'full'.
+ * @param text - The actual text to be sent.
+ */
+
 // Function to broadcast messages to all clients
-function broadcastTranslation(textType: any, translatedText: string | null) {
-  const message = JSON.stringify({message_type: textType, text: translatedText});
+function broadcastMessage(messageType: any, textStatus: any, text: any) {
+  const message = JSON.stringify({
+    message_type: messageType, // 'translation' or 'transcription'
+    text_status: textStatus,   // 'partial' or 'full'
+    text: text                 // The text content
+  });
   wss.clients.forEach(function each(client) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);
@@ -73,12 +84,13 @@ socket.on("message", (event: any) => {
     console.error(`[${utterance.code}] ${utterance.message}`);
     socket.close();
   } else if (utterance.event === "transcript" && utterance.transcription) {
+    broadcastMessage('transcription', utterance.type, utterance.transcription);
     console.log(
       `${utterance.type}: (${utterance.language}) ${utterance.transcription}`
     );
     const text_type = utterance.type;
     translate(utterance.transcription).then(translated_text => {
-      broadcastTranslation(text_type, translated_text);
+      broadcastMessage('translation', text_type, translated_text);
   }).catch(err => console.error(err));
 }
 });
