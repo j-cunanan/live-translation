@@ -13,7 +13,7 @@ async function translate(text: string) {
     messages: [
       {
         role: "system",
-        content: "You are a Japanese translator. Translate the following English text to Japanese. Only return the Japanese translation. ",
+        content: "You are a Japanese translator. Translate the following texts from another language to Japanese. Only return the Japanese translation. ",
       },
       { role: "user", content: text },
     ],
@@ -107,7 +107,7 @@ socket.on("open", async () => {
   // Configure stream with a configuration message
   const configuration = {
     x_gladia_key: gladiaKey,
-    language_behaviour: "automatic single language",
+    language_behaviour: "automatic multiple languages",
     sample_rate: SAMPLE_RATE,
     // "model_type":"accurate" <- Slower but more accurate model, useful if you need precise addresses for example.
   };
