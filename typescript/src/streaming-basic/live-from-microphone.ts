@@ -28,7 +28,22 @@ const wss = new WebSocketServer({ port: 8080 });
 wss.on('connection', function connection(ws) {
   console.log('A new client connected.');
   ws.on('message', function message(data) {
-    console.log('received: %s', data);
+    // Assuming data is a Blob from MediaRecorder
+    if (data instanceof Buffer) {
+      // Convert the received Buffer to a format that can be sent to Gladia API
+      const base64Audio = data.toString('base64');
+      
+      // Now, send this audio to the Gladia API for transcription
+      // For simplicity, we are directly using the WebSocket connection to the Gladia API opened below
+      // In a real application, you should properly handle the connection lifecycle and errors
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ frames: base64Audio }));
+      } else {
+        console.log("WebSocket connection to Gladia API is not open.");
+      }
+    } else {
+      console.log("Received non-binary data");
+    }
   });
 });
 
@@ -113,25 +128,4 @@ socket.on("open", async () => {
   };
   socket.send(JSON.stringify(configuration));
 
-  // create microphone instance
-  const microphone = mic({
-    rate: SAMPLE_RATE,
-    channels: "1",
-  });
-
-  const microphoneInputStream = microphone.getAudioStream();
-  microphoneInputStream.on("data", function (data: any) {
-    const base64 = data.toString("base64");
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ frames: base64 }));
-    } else {
-      console.log("WebSocket ready state is not [OPEN]");
-    }
-  });
-
-  microphoneInputStream.on("error", function (err: any) {
-    console.log("Error in Input Stream: " + err);
-  });
-
-  microphone.start();
 });

@@ -5,28 +5,34 @@
 <title>Live Translation</title>
 <style>
   .transcriptBox, .translationBox {
-    border: 1px solid #ccc; /* Add a border */
-    border-radius: 10px; /* Rounded corners */
-    padding: 10px; /* Some padding */
-    margin: 10px 0; /* Some margin */
-    display: block; /* Change to block to take full width */
-    max-height: 300px; /* Set a max height */
-    overflow-y: auto; /* Enable vertical scrolling */
-    background-color: #f9f9f9; /* Light background color for visibility */
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px 0;
+    display: block;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
   }
   .transcriptBox {
-    background-color: #f0f0f0; /* Light grey background */
+    background-color: #f0f0f0;
   }
   .translationBox {
-    background-color: #e6ffe6; /* Light green background */
+    background-color: #e6ffe6;
   }
   .partial {
-    color: grey; /* Style for partial transcripts/translations */
-    margin-bottom: 10px; /* Add some space between entries */
+    color: grey;
+    margin-bottom: 10px;
   }
   .final {
-    color: black; /* Style for final transcripts/translations */
-    margin-bottom: 10px; /* Add some space between entries */
+    color: black;
+    margin-bottom: 10px;
+  }
+  #startButton, #stopButton {
+    padding: 10px;
+    margin: 5px;
+    font-size: 16px;
+    cursor: pointer;
   }
 </style>
 </head>
@@ -37,10 +43,56 @@
 <div id="translationBox" class="translationBox">
   <!-- Translations will be displayed here -->
 </div>
+<button id="startButton">Start Recording</button>
+<button id="stopButton" disabled>Stop Recording</button>
+<script src="https://cdn.WebRTC-Experiment.com/RecordRTC.js"></script>
 <script>
   var ws = new WebSocket('ws://localhost:8080');
+  var recorder;
+
+  document.getElementById("startButton").onclick = function() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        recorder = new RecordRTC(stream, {
+          type: 'audio',
+          mimeType: 'audio/wav',
+          recorderType: RecordRTC.StereoAudioRecorder,
+          timeSlice: 1000,
+          desiredSampRate: 16000,
+          numberOfAudioChannels: 1,
+          ondataavailable: async function(blob) {
+            const buffer = await blob.arrayBuffer();
+            const modifiedBuffer = buffer.slice(44); // Remove WAV header
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(modifiedBuffer);
+            }
+          }
+        });
+        recorder.startRecording();
+
+        document.getElementById("startButton").disabled = true;
+        document.getElementById("stopButton").disabled = false;
+      })
+      .catch(error => {
+        console.error("Error accessing the microphone", error);
+      });
+  };
+
+  document.getElementById("stopButton").onclick = function() {
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stopRecording(function() {
+        let blob = recorder.getBlob();
+        recorder.destroy();
+        recorder = null;
+
+        document.getElementById("startButton").disabled = false;
+        document.getElementById("stopButton").disabled = true;
+      });
+    }
+  };
+
   ws.onmessage = function (event) {
-    var data = JSON.parse(event.data); // Assuming event.data is a JSON string
+    var data = JSON.parse(event.data);
     var targetBox = data.message_type === 'transcription' ? document.getElementById('transcriptBox') : document.getElementById('translationBox');
     var className = data.text_status === 'partial' ? 'partial' : 'final';
     
